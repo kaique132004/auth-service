@@ -4,6 +4,7 @@ import aero.sita.mgt.auth_service.Schemas.AppMapper;
 import aero.sita.mgt.auth_service.Schemas.DTO.GenericResponse;
 import aero.sita.mgt.auth_service.Schemas.DTO.PermissionRequest;
 import aero.sita.mgt.auth_service.Schemas.DTO.RegionRequest;
+import aero.sita.mgt.auth_service.Schemas.DTO.RegionResponse;
 import aero.sita.mgt.auth_service.Schemas.Entitys.RegionEntity;
 import aero.sita.mgt.auth_service.Schemas.Entitys.RegionRepository;
 import aero.sita.mgt.auth_service.Schemas.Entitys.UserPermissionRepository;
@@ -12,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -91,9 +93,9 @@ public class ApplicationService {
         return regionRequest;
     }
 
-    public List<RegionRequest> getAllRegions() {
+    public List<RegionResponse> getAllRegions() {
         return regionRepository.findAll().stream()
-                .map(appMapper::toRegionDto)
+                .map(appMapper::toRegionResponse)
                 .collect(Collectors.toList());
     }
 
@@ -122,4 +124,5 @@ public class ApplicationService {
                 .orElseThrow(() -> new IllegalArgumentException("Region not found: " + code));
         return appMapper.toRegionDto(region);
     }
+
 }

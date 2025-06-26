@@ -15,7 +15,7 @@ public class CorsConfig {
     @Bean
     public CorsFilter corsFilter() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(Arrays.asList("http://localhost:4000/", "http://127.0.0.1:4000/", "http://localhost:63342")); // ou "*", mas sem credentials
+        config.setAllowedOrigins(Arrays.asList("http://localhost:4000/", "http://127.0.0.1:4000/", "http://localhost:63342", "http://localhost:5173")); // ou "*", mas sem credentials
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true); // Só se não usar '*'

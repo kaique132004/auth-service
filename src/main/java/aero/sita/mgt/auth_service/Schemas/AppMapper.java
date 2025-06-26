@@ -2,11 +2,14 @@ package aero.sita.mgt.auth_service.Schemas;
 
 import aero.sita.mgt.auth_service.Schemas.DTO.PermissionRequest;
 import aero.sita.mgt.auth_service.Schemas.DTO.RegionRequest;
+import aero.sita.mgt.auth_service.Schemas.DTO.RegionResponse;
 import aero.sita.mgt.auth_service.Schemas.Entitys.RegionEntity;
 import aero.sita.mgt.auth_service.Schemas.Entitys.UserPermissions;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
+
+import java.util.List;
 
 @Mapper(componentModel = "spring")
 public interface AppMapper {
@@ -34,4 +37,6 @@ public interface AppMapper {
     void updateRegionFromDto(RegionRequest dto, @MappingTarget RegionEntity entity);
 
     void updatePermissionFromDto(PermissionRequest dto, @MappingTarget UserPermissions entity);
+
+    RegionResponse toRegionResponse(RegionEntity entity);
 }

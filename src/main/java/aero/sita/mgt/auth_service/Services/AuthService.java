@@ -1,12 +1,16 @@
 package aero.sita.mgt.auth_service.Services;
 
 import aero.sita.mgt.auth_service.Schemas.DTO.*;
+import aero.sita.mgt.auth_service.Schemas.Entitys.RegionRepository;
 import aero.sita.mgt.auth_service.Schemas.Entitys.UserEntity;
+import aero.sita.mgt.auth_service.Schemas.Entitys.UserPermissionRepository;
 import aero.sita.mgt.auth_service.Schemas.Entitys.UserRepository;
 import aero.sita.mgt.auth_service.Schemas.UserMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -25,12 +29,28 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AuthService {
 
+    @Autowired
     private final UserRepository userRepository;
+
+    @Autowired
     private final PasswordEncoder passwordEncoder;
+
+    @Autowired
     private final JwtService jwtService;
+
+    @Autowired
     private final UserMapper userMapper;
+
+    @Autowired
     private final RabbitTemplate rabbitTemplate;
 
+    @Autowired
+    private UserPermissionRepository permissionRepository;
+
+    @Autowired
+    private RegionRepository regionRepository;
+
+    @Autowired
     private final LogService logService;
 
 
@@ -135,18 +155,20 @@ public class AuthService {
             throw new BadCredentialsException("User is not enabled");
         }
 
-        String token = jwtService.generateToken(user.getUsername(), user.getRole());
+        // ✅ Novo JWT usando o UserEntity completo (com authorities)
+        String token = jwtService.generateToken(user);
+
         user.setLastLogin(LocalDateTime.now());
         userRepository.save(user);
 
-        rabbitTemplate.convertAndSend("auth.events", "auth.users.login.success",logService.logAction(String.format("LOGIN_%s", user.getUsername()), user.getUsername(), "User successfully logged in"));
+        rabbitTemplate.convertAndSend("auth.events", "auth.users.login.success", logService.logAction(String.format("LOGIN_%s", user.getUsername()), user.getUsername(), "User successfully logged in"));
 
         return new LoginResponse(token, user.getUsername(), user.getRole());
     }
 
-    public LoginResponse register(RegisterRequest request) {
 
-        String password_regex = "^(?=.*[A-Z])(?=.*[a-z])(?=.*[^a-zA-Z0-9]).8$";
+    public LoginResponse register(RegisterRequest request) {
+        String password_regex = "^(?=.*[A-Z])(?=.*[a-z])(?=.*[^a-zA-Z0-9]).{8,}$";
         String email_regex = "^[a-zA-Z0-9._%+-]+@(sita\\.aero|noreply\\.com|tecnocomp\\.com\\.br)$";
 
         if (userRepository.existsByUsername(request.getUsername()) || userRepository.existsByEmail(request.getEmail())) {
@@ -161,7 +183,6 @@ public class AuthService {
             throw new IllegalArgumentException("The email must be a sita account email address");
         }
 
-
         UserEntity user = userMapper.registerToEntity(request);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setCreatedBy(SecurityContextHolder.getContext().getAuthentication().getName());
@@ -174,21 +195,31 @@ public class AuthService {
         user.setIsActive(true);
 
         UserEntity savedUser = userRepository.save(user);
-        String token = jwtService.generateToken(savedUser.getUsername(), savedUser.getRole());
+
+        // ✅ Novo JWT com authorities incluídas
+        String token = jwtService.generateToken(savedUser);
 
         rabbitTemplate.convertAndSend("auth.events", "auth.users.created.success", logService.logAction(String.format("CREATE_NEW_USER_%s", request.getUsername()), SecurityContextHolder.getContext().getAuthentication().getName(), "User successfully created"));
         return new LoginResponse(token, savedUser.getUsername(), savedUser.getRole());
     }
 
-    public UserUpdateResponse updateUser(UserUpdateRequest request, String id) {
+
+    public UserUpdateResponse updateUser(UserUpdateRequest request, Long id) {
         UserEntity existingUser = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found with ID: " + id));
 
-        userMapper.updateEntityFromDto(request, existingUser);
+        userMapper.updateEntityFromDto(request, existingUser, regionRepository, permissionRepository);
         existingUser.setUpdatedBy(getCurrentUsername());
         userRepository.save(existingUser);
 
-        rabbitTemplate.convertAndSend("auth.events", "auth.users.updated.success", logService.logAction(String.format("UPDATE_USER_%s", existingUser.getUsername()), SecurityContextHolder.getContext().getAuthentication().getName(), "User successfully updated"));
+        rabbitTemplate.convertAndSend("auth.events", "auth.users.updated.success",
+                logService.logAction(
+                        String.format("UPDATE_USER_%s", existingUser.getUsername()),
+                        SecurityContextHolder.getContext().getAuthentication().getName(),
+                        "User successfully updated"
+                )
+        );
+
         return new UserUpdateResponse(202, "User was updated");
     }
 
@@ -233,7 +264,7 @@ public class AuthService {
                 .collect(Collectors.toList());
     }
 
-    public GenericResponse softDeleteUser(String id) {
+    public GenericResponse softDeleteUser(Long id) {
         UserEntity user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Not found user by ID: " + id));
 
@@ -290,6 +321,11 @@ public class AuthService {
         return new GenericResponse(200, "Password was redefined with successful", null);
     }
 
+    public UserResponse getUserById(Long id) {
+        Optional<UserEntity> user = userRepository.findById(id);
+        return user.stream().map(userMapper::toUserResponse).toList().get(0);
+    }
+
     private void validateResetToken(String token) {
         if (!jwtService.isTokenValid(token) || !jwtService.isResetToken(token)) {
             throw new RuntimeException("Token is invalid or expired");
@@ -310,5 +346,13 @@ public class AuthService {
         mail.setLink(Collections.singletonList(link));
 
         rabbitTemplate.convertAndSend("auth.events", "auth.users.reset", mail);
+    }
+
+    public List<UserResponse> getAllUsers() {
+        List<UserEntity> users = userRepository.findAll();
+
+        return users.stream()
+                .map(userMapper::toUserResponse)
+                .collect(Collectors.toList());
     }
 }

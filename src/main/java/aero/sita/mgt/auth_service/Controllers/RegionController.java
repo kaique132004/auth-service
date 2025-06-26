@@ -1,6 +1,7 @@
 package aero.sita.mgt.auth_service.Controllers;
 
 import aero.sita.mgt.auth_service.Schemas.DTO.RegionRequest;
+import aero.sita.mgt.auth_service.Schemas.DTO.RegionResponse;
 import aero.sita.mgt.auth_service.Services.ApplicationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -40,8 +41,9 @@ public class RegionController {
             @ApiResponse(responseCode = "200", description = "List of all regions", content = @Content(schema = @Schema(implementation = RegionRequest.class))),
             @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content)
     })
+
     @GetMapping
-    public ResponseEntity<List<RegionRequest>> getAllRegions() {
+    public ResponseEntity<List<RegionResponse>> getAllRegions() {
         return ResponseEntity.ok(applicationService.getAllRegions());
     }
 

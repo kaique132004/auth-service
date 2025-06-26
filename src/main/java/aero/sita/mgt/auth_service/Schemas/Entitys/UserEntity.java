@@ -2,17 +2,17 @@ package aero.sita.mgt.auth_service.Schemas.Entitys;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.LocalDateTime;
 import java.util.*;
-
 
 @Entity
 @Table(name = "user_table")
@@ -78,7 +78,6 @@ public class UserEntity implements UserDetails {
     )
     private Set<RegionEntity> regions = new HashSet<>();
 
-    // Relação para armazenar permissions (lista de Strings)
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "user_permissions",
@@ -87,7 +86,6 @@ public class UserEntity implements UserDetails {
     )
     private Set<UserPermissions> permissions = new HashSet<>();
 
-    // Para o map siteSettings, use uma tabela associativa key/value
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "user_site_settings", joinColumns = @JoinColumn(name = "user_id"))
     @MapKeyColumn(name = "setting_key")
@@ -106,14 +104,10 @@ public class UserEntity implements UserDetails {
     @Column(name = "enabled")
     private Boolean enabled = true;
 
-    // Authorities devem ser entidades separadas ou adaptadas, mas aqui um exemplo simples:
-    @OneToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
-    @JoinColumn(name = "user_id")
-    private List<RoleAuthority> authorities = new ArrayList<>();
-
+    // ✅ Autoridades baseadas apenas no campo 'role'
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return authorities;
+        return List.of(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()));
     }
 
     @Override
@@ -134,29 +128,5 @@ public class UserEntity implements UserDetails {
     @Override
     public boolean isEnabled() {
         return Boolean.TRUE.equals(enabled);
-    }
-
-
-    @Entity
-    @Table(name = "role_authority")
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
-    public static class RoleAuthority implements GrantedAuthority {
-
-        @jakarta.persistence.Id
-        @Id
-        @GeneratedValue(strategy = GenerationType.IDENTITY)
-        private Long id;
-
-        @Column(nullable = false, length = 100)
-        private String authority;
-
-        @Override
-        public String getAuthority() {
-            return authority;
-        }
-
     }
 }

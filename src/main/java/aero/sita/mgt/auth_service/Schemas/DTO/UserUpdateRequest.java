@@ -39,5 +39,4 @@ public class UserUpdateRequest {
     private Boolean accountNonLocked;
     private Boolean credentialsNonExpired;
     private Boolean enabled;
-    private List<UserEntity.RoleAuthority> authorities;
 }

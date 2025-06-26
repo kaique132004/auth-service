@@ -59,10 +59,9 @@ public class AuthController {
             @ApiResponse(responseCode = "204", description = "User updated successfully"),
             @ApiResponse(responseCode = "404", description = "User not found")
     })
-    @Transactional
     @PutMapping("/update/{id}")
-    public ResponseEntity<UserUpdateResponse> update(@PathVariable String id, @RequestBody UserUpdateRequest request) {
-        return ResponseEntity.status(HttpStatus.NO_CONTENT).body(authService.updateUser(request, id));
+    public ResponseEntity<UserUpdateResponse> update(@PathVariable Long id, @RequestBody UserUpdateRequest request) {
+        return ResponseEntity.ok(authService.updateUser(request, id));
     }
 
     @Operation(summary = "Reset password using token", security = @SecurityRequirement(name = "bearerAuth"))
@@ -95,6 +94,11 @@ public class AuthController {
         return ResponseEntity.ok(authService.changeOwnPassword(request));
     }
 
+    @GetMapping("/users/{id}")
+    public ResponseEntity<UserResponse> getUser(@PathVariable Long id) {
+        return ResponseEntity.ok(authService.getUserById(id));
+    }
+
     @Operation(summary = "Admin reset password of a user", security = @SecurityRequirement(name = "bearerAuth"))
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Password reset by admin successfully"),
@@ -123,8 +127,13 @@ public class AuthController {
             @ApiResponse(responseCode = "404", description = "User not found")
     })
     @DeleteMapping("/users/{id}")
-    private ResponseEntity<GenericResponse> deleteUser(@PathVariable String id) {
+    private ResponseEntity<GenericResponse> deleteUser(@PathVariable Long id) {
         GenericResponse response = authService.softDeleteUser(id);
         return ResponseEntity.status(response.getStatus()).body(response);
+    }
+
+    @GetMapping("/list")
+    public ResponseEntity<?> list() {
+        return ResponseEntity.status(200).body(authService.getAllUsers());
     }
 }
