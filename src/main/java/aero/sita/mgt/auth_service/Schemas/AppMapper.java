@@ -1,6 +1,7 @@
 package aero.sita.mgt.auth_service.Schemas;
 
 import aero.sita.mgt.auth_service.Schemas.DTO.PermissionRequest;
+import aero.sita.mgt.auth_service.Schemas.DTO.PermissionResponse;
 import aero.sita.mgt.auth_service.Schemas.DTO.RegionRequest;
 import aero.sita.mgt.auth_service.Schemas.DTO.RegionResponse;
 import aero.sita.mgt.auth_service.Schemas.Entitys.RegionEntity;
@@ -32,6 +33,8 @@ public interface AppMapper {
     RegionRequest toRegionDto(RegionEntity entity);
 
     PermissionRequest toPermissionDto(UserPermissions entity);
+
+    PermissionResponse toPermissionResDto(UserPermissions entity);
 
     // Atualização de entidades existentes
     void updateRegionFromDto(RegionRequest dto, @MappingTarget RegionEntity entity);

@@ -33,11 +33,23 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
+                        // Public
                         .requestMatchers("/api/v2/auth/login",
                                 "/api/v2/auth/reset-password/**",
                                 "/v3/**",
-                                "/swagger-ui*/**").permitAll()
-                        .requestMatchers("/api/v2/auth/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MASTER", "MASTER", "ADMIN")
+                                "/swagger-ui*/**",
+                                "/actuator/**").permitAll()
+
+                        // Usuários podem listar/editar usuários
+                        .requestMatchers("/api/v2/auth/users/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MASTER")
+
+                        // Para rotas de permissão, registro, update, etc.
+                        .requestMatchers("/api/v2/auth/register", "/api/v2/auth/update/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MASTER")
+
+                        // Qualquer outra /auth precisa ter admin/master
+                        .requestMatchers("/api/v2/auth/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MASTER")
+
+                        // Outras rotas só autenticadas
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)

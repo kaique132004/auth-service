@@ -7,8 +7,10 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface UserPermissionRepository extends JpaRepository<UserPermissions, String> {
+public interface UserPermissionRepository extends JpaRepository<UserPermissions, Long> {
     Optional<UserPermissions> findUserPermissionsByPermissionName(String permissionName);
 
     Optional<UserPermissions> findByPermissionName(String permissionName);
+
+    Optional<UserPermissions> findById(Long id);
 }

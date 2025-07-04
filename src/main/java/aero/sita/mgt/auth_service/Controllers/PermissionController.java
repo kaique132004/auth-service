@@ -1,6 +1,7 @@
 package aero.sita.mgt.auth_service.Controllers;
 
 import aero.sita.mgt.auth_service.Schemas.DTO.PermissionRequest;
+import aero.sita.mgt.auth_service.Schemas.DTO.PermissionResponse;
 import aero.sita.mgt.auth_service.Services.ApplicationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -36,20 +37,20 @@ public class PermissionController {
 
     @Operation(summary = "Get all permissions")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "List of permissions", content = @Content(schema = @Schema(implementation = PermissionRequest.class)))
+            @ApiResponse(responseCode = "200", description = "List of permissions", content = @Content(schema = @Schema(implementation = PermissionResponse.class)))
     })
     @GetMapping
-    public ResponseEntity<List<PermissionRequest>> getAllPermissions() {
+    public ResponseEntity<List<PermissionResponse>> getAllPermissions() {
         return ResponseEntity.ok(applicationService.getAllPermissions());
     }
 
     @Operation(summary = "Get a permission by name")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Permission found", content = @Content(schema = @Schema(implementation = PermissionRequest.class))),
+            @ApiResponse(responseCode = "200", description = "Permission found", content = @Content(schema = @Schema(implementation = PermissionResponse.class))),
             @ApiResponse(responseCode = "404", description = "Permission not found", content = @Content)
     })
     @GetMapping("/{name}")
-    public ResponseEntity<PermissionRequest> getPermission(@PathVariable String name) {
+    public ResponseEntity<PermissionResponse> getPermission(@PathVariable String name) {
         return ResponseEntity.ok(applicationService.getPermissionByName(name));
     }
 

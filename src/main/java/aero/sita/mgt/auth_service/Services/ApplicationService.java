@@ -1,10 +1,7 @@
 package aero.sita.mgt.auth_service.Services;
 
 import aero.sita.mgt.auth_service.Schemas.AppMapper;
-import aero.sita.mgt.auth_service.Schemas.DTO.GenericResponse;
-import aero.sita.mgt.auth_service.Schemas.DTO.PermissionRequest;
-import aero.sita.mgt.auth_service.Schemas.DTO.RegionRequest;
-import aero.sita.mgt.auth_service.Schemas.DTO.RegionResponse;
+import aero.sita.mgt.auth_service.Schemas.DTO.*;
 import aero.sita.mgt.auth_service.Schemas.Entitys.RegionEntity;
 import aero.sita.mgt.auth_service.Schemas.Entitys.RegionRepository;
 import aero.sita.mgt.auth_service.Schemas.Entitys.UserPermissionRepository;
@@ -46,16 +43,16 @@ public class ApplicationService {
         return permissionRequest;
     }
 
-    public PermissionRequest getPermissionByName(String name) {
+    public PermissionResponse getPermissionByName(String name) {
         UserPermissions permission = userPermissionRepository.findUserPermissionsByPermissionName(name)
                 .orElseThrow(() -> new IllegalArgumentException("Permission not found: " + name));
-        return appMapper.toPermissionDto(permission);
+        return appMapper.toPermissionResDto(permission);
     }
 
 
-    public List<PermissionRequest> getAllPermissions() {
+    public List<PermissionResponse> getAllPermissions() {
         return userPermissionRepository.findAll().stream()
-                .map(appMapper::toPermissionDto)
+                .map(appMapper::toPermissionResDto)
                 .collect(Collectors.toList());
     }
 

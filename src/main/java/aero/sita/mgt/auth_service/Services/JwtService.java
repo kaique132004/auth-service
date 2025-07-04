@@ -1,6 +1,8 @@
 package aero.sita.mgt.auth_service.Services;
 
 import aero.sita.mgt.auth_service.Schemas.Entitys.UserEntity;
+import aero.sita.mgt.auth_service.Schemas.Entitys.UserPermissions;
+import aero.sita.mgt.auth_service.Schemas.Entitys.UserRepository;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -9,27 +11,27 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
-import java.util.Base64;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class JwtService {
 
-    private static final long EXPIRATION_TIME = 1000 * 60 * 60 * 2; // 2 horas
+    public static final long EXPIRATION_TIME = 1000 * 60 * 60 * 2; // 2 horas
     @Value("${jwt.secret}")
     private String jwtSecret;
     @Value("${jwt.aes-secret}")
     private String aesSecret;
+
+    private final UserRepository userRepository;
 
     private Key getSigningKey() {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
@@ -38,9 +40,21 @@ public class JwtService {
 
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
+
+        // Roles (authorities padrão do Spring)
         claims.put("authorities", userDetails.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.toList()));
+
+        // Custom permissions do usuário
+        UserEntity user = userRepository.findByUsername(userDetails.getUsername())
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+
+        List<String> permissions = user.getPermissions().stream()
+                .map(UserPermissions::getPermissionName) // ou .getName()
+                .collect(Collectors.toList());
+
+        claims.put("permissions", permissions);
 
         String jwt = Jwts.builder()
                 .setClaims(claims)
@@ -52,6 +66,7 @@ public class JwtService {
 
         return encryptAES(jwt);
     }
+
 
     public String generatePasswordResetToken(UserEntity user) {
         Map<String, Object> claims = new HashMap<>();

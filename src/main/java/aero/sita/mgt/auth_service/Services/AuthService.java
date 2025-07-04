@@ -1,10 +1,7 @@
 package aero.sita.mgt.auth_service.Services;
 
 import aero.sita.mgt.auth_service.Schemas.DTO.*;
-import aero.sita.mgt.auth_service.Schemas.Entitys.RegionRepository;
-import aero.sita.mgt.auth_service.Schemas.Entitys.UserEntity;
-import aero.sita.mgt.auth_service.Schemas.Entitys.UserPermissionRepository;
-import aero.sita.mgt.auth_service.Schemas.Entitys.UserRepository;
+import aero.sita.mgt.auth_service.Schemas.Entitys.*;
 import aero.sita.mgt.auth_service.Schemas.UserMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +21,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
+import static aero.sita.mgt.auth_service.Services.JwtService.EXPIRATION_TIME;
 
 @Service
 @RequiredArgsConstructor
@@ -136,6 +135,9 @@ public class AuthService {
     }
 
     public Object login(LoginRequest request) {
+
+        long expirationTimestamp = System.currentTimeMillis() + EXPIRATION_TIME;
+
         UserEntity user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new UsernameNotFoundException("Not found user"));
 
@@ -155,7 +157,6 @@ public class AuthService {
             throw new BadCredentialsException("User is not enabled");
         }
 
-        // ✅ Novo JWT usando o UserEntity completo (com authorities)
         String token = jwtService.generateToken(user);
 
         user.setLastLogin(LocalDateTime.now());
@@ -163,11 +164,21 @@ public class AuthService {
 
         rabbitTemplate.convertAndSend("auth.events", "auth.users.login.success", logService.logAction(String.format("LOGIN_%s", user.getUsername()), user.getUsername(), "User successfully logged in"));
 
-        return new LoginResponse(token, user.getUsername(), user.getRole());
+        LoginResponse loginResponse = new LoginResponse();
+        loginResponse.setUsername(user.getUsername());
+        loginResponse.setEmail(user.getEmail());
+        loginResponse.setRole(user.getRole());
+        loginResponse.setId(user.getId());
+        loginResponse.setPermissions(user.getPermissions().stream().map(UserPermissions::getPermissionName).toList());
+        loginResponse.setEncryptedToken(token);
+        loginResponse.setExp(expirationTimestamp);
+        return loginResponse;
     }
 
 
     public LoginResponse register(RegisterRequest request) {
+        long expirationTimestamp = System.currentTimeMillis() + EXPIRATION_TIME;
+
         String password_regex = "^(?=.*[A-Z])(?=.*[a-z])(?=.*[^a-zA-Z0-9]).{8,}$";
         String email_regex = "^[a-zA-Z0-9._%+-]+@(sita\\.aero|noreply\\.com|tecnocomp\\.com\\.br)$";
 
@@ -200,7 +211,14 @@ public class AuthService {
         String token = jwtService.generateToken(savedUser);
 
         rabbitTemplate.convertAndSend("auth.events", "auth.users.created.success", logService.logAction(String.format("CREATE_NEW_USER_%s", request.getUsername()), SecurityContextHolder.getContext().getAuthentication().getName(), "User successfully created"));
-        return new LoginResponse(token, savedUser.getUsername(), savedUser.getRole());
+        LoginResponse loginResponse = new LoginResponse();
+        loginResponse.setUsername(user.getUsername());
+        loginResponse.setEmail(user.getEmail());
+        loginResponse.setRole(user.getRole());
+        loginResponse.setId(user.getId());
+        loginResponse.setEncryptedToken(token);
+        loginResponse.setExp(expirationTimestamp);
+        return loginResponse;
     }
 
 
