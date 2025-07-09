@@ -8,7 +8,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git branch: "${env.BRANCH_NAME}", url: 'git@github.com/kaique132004/auth-service.git'
+                git branch: "${env.BRANCH_NAME}", url: 'https://github.com/kaique132004/auth-service.git', credentialsId: '52ee3cac-abfd-4cde-8a31-eb292d76ef35'
             }
         }
 
