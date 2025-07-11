@@ -38,27 +38,21 @@ public class JwtService {
     }
 
 
-    public String generateToken(UserDetails userDetails) {
+    public String generateToken(UserEntity user) {
         Map<String, Object> claims = new HashMap<>();
 
-        // Roles (authorities padrão do Spring)
-        claims.put("authorities", userDetails.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .collect(Collectors.toList()));
+        // Authorities (roles) — se tiver campo de role ou authorities direto
+        claims.put("authorities", List.of(user.getRole())); // ou do jeito que seu modelo usar
 
-        // Custom permissions do usuário
-        UserEntity user = userRepository.findByUsername(userDetails.getUsername())
-                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
-
+        // Custom permissions
         List<String> permissions = user.getPermissions().stream()
-                .map(UserPermissions::getPermissionName) // ou .getName()
+                .map(UserPermissions::getPermissionName)
                 .collect(Collectors.toList());
-
         claims.put("permissions", permissions);
 
         String jwt = Jwts.builder()
                 .setClaims(claims)
-                .setSubject(userDetails.getUsername())
+                .setSubject(user.getUsername())
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
                 .signWith(Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8)), SignatureAlgorithm.HS256)
@@ -66,6 +60,7 @@ public class JwtService {
 
         return encryptAES(jwt);
     }
+
 
 
     public String generatePasswordResetToken(UserEntity user) {

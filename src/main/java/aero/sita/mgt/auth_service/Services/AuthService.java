@@ -172,6 +172,7 @@ public class AuthService {
         loginResponse.setPermissions(user.getPermissions().stream().map(UserPermissions::getPermissionName).toList());
         loginResponse.setEncryptedToken(token);
         loginResponse.setExp(expirationTimestamp);
+        loginResponse.setName(user.getFirstName() + " " + user.getLastName());
         return loginResponse;
     }
 
