@@ -7,7 +7,6 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -17,6 +16,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -52,7 +52,6 @@ public class AuthService {
     @Autowired
     private final LogService logService;
 
-
     @Scheduled(cron = "0 0 0 * * *")
     public void disableUsers() {
         LocalDateTime limit = LocalDateTime.now().minusMonths(3);
@@ -68,9 +67,9 @@ public class AuthService {
         List<String> usernames = disable.stream().map(UserEntity::getUsername).toList();
 
         String formattedUsernames = String.join(", ", usernames);
-        rabbitTemplate.convertAndSend("auth.events","auth.users.updated", logService.logAction("DISABLE_USERS", formattedUsernames, "Users who have not logged in for over a 3 months have been deactivated."));
+        rabbitTemplate.convertAndSend("auth.events", "auth.users.updated", logService.logAction("DISABLE_USERS",
+                formattedUsernames, "Users who have not logged in for over a 3 months have been deactivated."));
     }
-
 
     @Scheduled(cron = "0 0 0 * * *")
     public void setExpiredUsers() {
@@ -83,7 +82,9 @@ public class AuthService {
         userRepository.saveAll(reset);
         List<String> usernames = reset.stream().map(UserEntity::getUsername).toList();
         String formattedUsernames = String.join(", ", usernames);
-        rabbitTemplate.convertAndSend("auth.events", "auth.events.updated", logService.logAction("SET_CREDENTIALS_EXPIRED", formattedUsernames, "Users who have not redefined your password, was changed to expired for security."));
+        rabbitTemplate.convertAndSend("auth.events", "auth.events.updated",
+                logService.logAction("SET_CREDENTIALS_EXPIRED", formattedUsernames,
+                        "Users who have not redefined your password, was changed to expired for security."));
     }
 
     @Scheduled(cron = "0 0 0 * * *")
@@ -97,7 +98,9 @@ public class AuthService {
         userRepository.saveAll(disable);
         List<String> usernames = disable.stream().map(UserEntity::getUsername).toList();
         String formattedUsernames = String.join(", ", usernames);
-        rabbitTemplate.convertAndSend("auth.events", "auth.users.login.reset-password", logService.logAction("DISABLE_ACCOUNTS_TEMPORARY", formattedUsernames, "Accounts defined temporarily, was changed to disabled."));
+        rabbitTemplate.convertAndSend("auth.events", "auth.users.login.reset-password",
+                logService.logAction("DISABLE_ACCOUNTS_TEMPORARY", formattedUsernames,
+                        "Accounts defined temporarily, was changed to disabled."));
 
     }
 
@@ -123,8 +126,8 @@ public class AuthService {
             entity.setRole("MASTER");
             entity.setAccountNonExpired(true);
             entity.setAccountNonLocked(true);
+            entity.setSiteSettings(new HashMap<>()); // Inicializa o Map aqui
             userRepository.save(entity);
-            rabbitTemplate.convertAndSend("auth.events", "auth.users.created.system",  logService.logAction("CREATE_FIRST_USER", entity.getUsername(), "User created."));
             return entity;
         }
         return user.get();
@@ -142,18 +145,21 @@ public class AuthService {
                 .orElseThrow(() -> new UsernameNotFoundException("Not found user"));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            rabbitTemplate.convertAndSend("auth.events", "auth.users.login.error", logService.logAction("LOGIN", request.getUsername(), "Wrong password"));
+            rabbitTemplate.convertAndSend("auth.events", "auth.users.login.error",
+                    logService.logAction("LOGIN", request.getUsername(), "Wrong password"));
             throw new BadCredentialsException("Password incorrect");
         }
 
         if (!Boolean.TRUE.equals(user.getCredentialsNonExpired())) {
             String resetToken = jwtService.generatePasswordResetToken(user);
-            rabbitTemplate.convertAndSend("auth.events", "auth.users.login.warning", logService.logAction("LOGIN", request.getUsername(), "Is necessary redefine your password"));
+            rabbitTemplate.convertAndSend("auth.events", "auth.users.login.warning",
+                    logService.logAction("LOGIN", request.getUsername(), "Is necessary redefine your password"));
             return new GenericResponse(307, "Is necessary redefine your password", resetToken);
         }
 
         if (!Boolean.TRUE.equals(user.getEnabled())) {
-            rabbitTemplate.convertAndSend("auth.events", "auth.users.login.error", logService.logAction("LOGIN", request.getUsername(), "Username with status disabled"));
+            rabbitTemplate.convertAndSend("auth.events", "auth.users.login.error",
+                    logService.logAction("LOGIN", request.getUsername(), "Username with status disabled"));
             throw new BadCredentialsException("User is not enabled");
         }
 
@@ -162,7 +168,8 @@ public class AuthService {
         user.setLastLogin(LocalDateTime.now());
         userRepository.save(user);
 
-        rabbitTemplate.convertAndSend("auth.events", "auth.users.login.success", logService.logAction(String.format("LOGIN_%s", user.getUsername()), user.getUsername(), "User successfully logged in"));
+        rabbitTemplate.convertAndSend("auth.events", "auth.users.login.success", logService.logAction(
+                String.format("LOGIN_%s", user.getUsername()), user.getUsername(), "User successfully logged in"));
 
         LoginResponse loginResponse = new LoginResponse();
         loginResponse.setUsername(user.getUsername());
@@ -173,9 +180,9 @@ public class AuthService {
         loginResponse.setEncryptedToken(token);
         loginResponse.setExp(expirationTimestamp);
         loginResponse.setName(user.getFirstName() + " " + user.getLastName());
+        loginResponse.setSiteSettings(user.getSiteSettings());
         return loginResponse;
     }
-
 
     public LoginResponse register(RegisterRequest request) {
         long expirationTimestamp = System.currentTimeMillis() + EXPIRATION_TIME;
@@ -183,13 +190,17 @@ public class AuthService {
         String password_regex = "^(?=.*[A-Z])(?=.*[a-z])(?=.*[^a-zA-Z0-9]).{8,}$";
         String email_regex = "^[a-zA-Z0-9._%+-]+@(sita\\.aero|noreply\\.com|tecnocomp\\.com\\.br)$";
 
-        if (userRepository.existsByUsername(request.getUsername()) || userRepository.existsByEmail(request.getEmail())) {
-            rabbitTemplate.convertAndSend("auth.events", "auth.users.created.error", logService.logAction(String.format("CREATE_NEW_USER%s", request.getUsername()), request.getUsername(), "Username or email address already in use"));
+        if (userRepository.existsByUsername(request.getUsername())
+                || userRepository.existsByEmail(request.getEmail())) {
+            rabbitTemplate.convertAndSend("auth.events", "auth.users.created.error",
+                    logService.logAction(String.format("CREATE_NEW_USER%s", request.getUsername()),
+                            request.getUsername(), "Username or email address already in use"));
             throw new IllegalArgumentException("Username or email address already in use");
         }
 
         if (!Pattern.matches(password_regex, request.getPassword())) {
-            throw new IllegalArgumentException("The password must be at least 8 characters long and a special character");
+            throw new IllegalArgumentException(
+                    "The password must be at least 8 characters long and a special character");
         }
         if (!Pattern.matches(email_regex, request.getEmail())) {
             throw new IllegalArgumentException("The email must be a sita account email address");
@@ -205,13 +216,15 @@ public class AuthService {
         user.setCredentialsNonExpired(true);
         user.setEnabled(true);
         user.setIsActive(true);
+        user.setSiteSettings(new HashMap<>()); // Inicializa o Map aqui para evitar NullPointer
 
         UserEntity savedUser = userRepository.save(user);
 
-        // ✅ Novo JWT com authorities incluídas
         String token = jwtService.generateToken(savedUser);
 
-        rabbitTemplate.convertAndSend("auth.events", "auth.users.created.success", logService.logAction(String.format("CREATE_NEW_USER_%s", request.getUsername()), SecurityContextHolder.getContext().getAuthentication().getName(), "User successfully created"));
+        rabbitTemplate.convertAndSend("auth.events", "auth.users.created.success",
+                logService.logAction(String.format("CREATE_NEW_USER_%s", request.getUsername()),
+                        SecurityContextHolder.getContext().getAuthentication().getName(), "User successfully created"));
         LoginResponse loginResponse = new LoginResponse();
         loginResponse.setUsername(user.getUsername());
         loginResponse.setEmail(user.getEmail());
@@ -222,22 +235,25 @@ public class AuthService {
         return loginResponse;
     }
 
-
     public UserUpdateResponse updateUser(UserUpdateRequest request, Long id) {
         UserEntity existingUser = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found with ID: " + id));
 
         userMapper.updateEntityFromDto(request, existingUser, regionRepository, permissionRepository);
         existingUser.setUpdatedBy(getCurrentUsername());
+
+        // Caso siteSettings seja null, inicialize para evitar problemas no DB
+        if (existingUser.getSiteSettings() == null) {
+            existingUser.setSiteSettings(new HashMap<>());
+        }
+
         userRepository.save(existingUser);
 
         rabbitTemplate.convertAndSend("auth.events", "auth.users.updated.success",
                 logService.logAction(
                         String.format("UPDATE_USER_%s", existingUser.getUsername()),
                         SecurityContextHolder.getContext().getAuthentication().getName(),
-                        "User successfully updated"
-                )
-        );
+                        "User successfully updated"));
 
         return new UserUpdateResponse(202, "User was updated");
     }
@@ -250,7 +266,9 @@ public class AuthService {
         user.setUpdatedBy(getCurrentUsername());
         userRepository.save(user);
 
-        rabbitTemplate.convertAndSend("auth.events", "auth.users.updated.reset-password", logService.logAction(String.format("RESET_PASSWORD_USER_%s", username), SecurityContextHolder.getContext().getAuthentication().getName(), "Password reset by Admin"));
+        rabbitTemplate.convertAndSend("auth.events", "auth.users.updated.reset-password",
+                logService.logAction(String.format("RESET_PASSWORD_USER_%s", username),
+                        SecurityContextHolder.getContext().getAuthentication().getName(), "Password reset by Admin"));
         return new GenericResponse(200, "Password was redefined by user Admin", null);
     }
 
@@ -261,7 +279,9 @@ public class AuthService {
 
         sendResetPasswordEmail(user.getEmail(), resetLink);
 
-        rabbitTemplate.convertAndSend("auth.events", "auth.users.login.mail", logService.logAction(String.format("SEND_TOKEN_EMAIL_TO_%s", request.getUsername()), request.getUsername(), "Send link with token to reset password"));
+        rabbitTemplate.convertAndSend("auth.events", "auth.users.login.mail",
+                logService.logAction(String.format("SEND_TOKEN_EMAIL_TO_%s", request.getUsername()),
+                        request.getUsername(), "Send link with token to reset password"));
         return new GenericResponse(202, "Password reset link was generated", "");
     }
 
@@ -296,11 +316,12 @@ public class AuthService {
         user.setUpdatedBy(getCurrentUsername()); // já tem esse método
 
         userRepository.save(user);
-        rabbitTemplate.convertAndSend("auth.events", "auth.users.updated.delete", logService.logAction(String.format("DELETE_USER_%s", id), SecurityContextHolder.getContext().getAuthentication().getName(), "User was disabled"));
+        rabbitTemplate.convertAndSend("auth.events", "auth.users.updated.delete",
+                logService.logAction(String.format("DELETE_USER_%s", id),
+                        SecurityContextHolder.getContext().getAuthentication().getName(), "User was disabled"));
 
         return new GenericResponse(200, "Status user changed to disabled, successful", null);
     }
-
 
     public GenericResponse changeOwnPassword(ChangePasswordRequest request) {
         String password_regex = "^(?=.*[A-Z])(?=.*[a-z])(?=.*[^a-zA-Z0-9]).8$";
@@ -311,7 +332,8 @@ public class AuthService {
             throw new BadCredentialsException("Current password is incorrect");
         }
         if (!Pattern.matches(password_regex, user.getPassword())) {
-            throw new BadCredentialsException("The password must be at least 8 characters long and a special character");
+            throw new BadCredentialsException(
+                    "The password must be at least 8 characters long and a special character");
         }
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
@@ -320,7 +342,10 @@ public class AuthService {
         user.setUpdatedBy(username);
         userRepository.save(user);
 
-        rabbitTemplate.convertAndSend("auth.events", "auth.users.updated.reset-password", logService.logAction(String.format("RESET_PASSWORD_USER_%s", username), SecurityContextHolder.getContext().getAuthentication().getName(), "Password was updated by self user"));
+        rabbitTemplate.convertAndSend("auth.events", "auth.users.updated.reset-password",
+                logService.logAction(String.format("RESET_PASSWORD_USER_%s", username),
+                        SecurityContextHolder.getContext().getAuthentication().getName(),
+                        "Password was updated by self user"));
 
         return new GenericResponse(200, "Password was changed", null);
     }
@@ -336,7 +361,9 @@ public class AuthService {
         user.setCredentialsNonExpired(true);
         userRepository.save(user);
 
-        rabbitTemplate.convertAndSend("auth.events", "auth.users.updated.reset-password", logService.logAction(String.format("RESET_PASSWORD_USER_%s", username), "system_application", "Password was updated by email link"));
+        rabbitTemplate.convertAndSend("auth.events", "auth.users.updated.reset-password",
+                logService.logAction(String.format("RESET_PASSWORD_USER_%s", username), "system_application",
+                        "Password was updated by email link"));
         return new GenericResponse(200, "Password was redefined with successful", null);
     }
 

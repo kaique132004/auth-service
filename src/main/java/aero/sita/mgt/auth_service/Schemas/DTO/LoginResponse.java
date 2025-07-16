@@ -3,6 +3,7 @@ package aero.sita.mgt.auth_service.Schemas.DTO;
 import lombok.*;
 
 import java.util.List;
+import java.util.Map;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -17,4 +18,5 @@ public class LoginResponse {
     private Long id;
     private String email;
     private String name;
+    private Map<String, SectionSettings> siteSettings;
 }

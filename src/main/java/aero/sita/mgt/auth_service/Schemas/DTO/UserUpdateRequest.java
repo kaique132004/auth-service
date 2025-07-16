@@ -33,7 +33,7 @@ public class UserUpdateRequest {
 
     private Set<PermissionRequest> permissions;
 
-    private Map<String, String> siteSettings;
+    private Map<String, SectionSettings> siteSettings;
 
     private Boolean accountNonExpired;
     private Boolean accountNonLocked;

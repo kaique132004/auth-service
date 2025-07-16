@@ -10,4 +10,9 @@ public class UserPasswordRequest {
 
     private String newPassword;
 
+    @Override
+    public String toString() {
+        return "UserPasswordRequest(token=****, username=" + username + ", newPassword=****)";
+    }
+
 }

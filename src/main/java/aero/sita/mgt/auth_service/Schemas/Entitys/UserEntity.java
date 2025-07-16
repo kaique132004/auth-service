@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
+
 import org.springframework.data.annotation.Id;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -13,6 +14,9 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.LocalDateTime;
 import java.util.*;
+
+import aero.sita.mgt.auth_service.Components.SiteSettingsConverter;
+import aero.sita.mgt.auth_service.Schemas.DTO.SectionSettings;
 
 @Entity
 @Table(name = "user_table")
@@ -71,26 +75,16 @@ public class UserEntity implements UserDetails {
     private Boolean isNotTemporary = true;
 
     @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(
-            name = "user_regions",
-            joinColumns = @JoinColumn(name = "user_id"),
-            inverseJoinColumns = @JoinColumn(name = "region_id")
-    )
+    @JoinTable(name = "user_regions", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "region_id"))
     private Set<RegionEntity> regions = new HashSet<>();
 
     @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(
-            name = "user_permissions",
-            joinColumns = @JoinColumn(name = "user_id"),
-            inverseJoinColumns = @JoinColumn(name = "permission_id")
-    )
+    @JoinTable(name = "user_permissions", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "permission_id"))
     private Set<UserPermissions> permissions = new HashSet<>();
 
-    @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "user_site_settings", joinColumns = @JoinColumn(name = "user_id"))
-    @MapKeyColumn(name = "setting_key")
-    @Column(name = "setting_value")
-    private Map<String, String> siteSettings = new HashMap<>();
+    @Convert(converter = SiteSettingsConverter.class)
+    @Column(name = "site_settings_json", columnDefinition = "TEXT")
+    private Map<String, SectionSettings> siteSettings = new HashMap<>();
 
     @Column(name = "account_non_expired")
     private Boolean accountNonExpired = true;

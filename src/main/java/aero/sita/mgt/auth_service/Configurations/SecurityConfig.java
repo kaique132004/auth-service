@@ -38,25 +38,23 @@ public class SecurityConfig {
                                 "/api/v2/auth/reset-password/**",
                                 "/v3/**",
                                 "/swagger-ui*/**",
-                                "/actuator/**").permitAll()
+                                "/actuator/**")
+                        .permitAll()
 
                         // Usuários podem listar/editar usuários
-                        .requestMatchers("/api/v2/auth/users/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MASTER")
-
-                        // Para rotas de permissão, registro, update, etc.
-                        .requestMatchers("/api/v2/auth/register", "/api/v2/auth/update/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MASTER")
-
-                        // Qualquer outra /auth precisa ter admin/master
-                        .requestMatchers("/api/v2/auth/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MASTER")
+                        .requestMatchers("/api/v2/auth/users/**")
+                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_MASTER", "MASTER", "ADMIN", "SUPERVISOR")
+                        .requestMatchers("/api/v2/auth/register", "/api/v2/auth/update/**")
+                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_MASTER", "MASTER", "ADMIN", "SUPERVISOR")
+                        .requestMatchers("/api/v2/auth/**")
+                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_MASTER", "MASTER", "ADMIN", "SUPERVISOR")
 
                         // Outras rotas só autenticadas
-                        .anyRequest().authenticated()
-                )
+                        .anyRequest().permitAll())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .build();
     }
-
 
     @Bean
     public PasswordEncoder passwordEncoder() {

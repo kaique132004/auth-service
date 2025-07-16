@@ -9,9 +9,6 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.Cipher;
@@ -31,8 +28,6 @@ public class JwtService {
     @Value("${jwt.aes-secret}")
     private String aesSecret;
 
-    private final UserRepository userRepository;
-
     private Key getSigningKey() {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
     }
@@ -42,7 +37,7 @@ public class JwtService {
         Map<String, Object> claims = new HashMap<>();
 
         // Authorities (roles) — se tiver campo de role ou authorities direto
-        claims.put("authorities", List.of(user.getRole())); // ou do jeito que seu modelo usar
+        claims.put("authorities", List.of(user.getRole()));
 
         // Custom permissions
         List<String> permissions = user.getPermissions().stream()
@@ -77,6 +72,8 @@ public class JwtService {
 
         return encryptAES(jwt);
     }
+
+
 
     public String extractUsername(String token) {
         String decrypted = decryptAES(token);

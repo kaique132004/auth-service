@@ -1,6 +1,5 @@
 package aero.sita.mgt.auth_service.Schemas.DTO;
 
-
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -25,5 +24,5 @@ public class UserResponse {
     private Boolean credentialsNonExpired;
     private List<RegionRequest> regions;
     private List<PermissionRequest> permissions;
-    private Map<String, String> siteSettings;
+    private Map<String, SectionSettings> siteSettings;
 }
