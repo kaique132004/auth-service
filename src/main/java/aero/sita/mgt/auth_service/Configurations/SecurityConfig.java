@@ -3,7 +3,9 @@ package aero.sita.mgt.auth_service.Configurations;
 import aero.sita.mgt.auth_service.Components.CustomAccessDeniedHandler;
 import aero.sita.mgt.auth_service.Components.CustomAuthenticationEntryPoint;
 import aero.sita.mgt.auth_service.Components.JwtAuthenticationFilter;
+import aero.sita.mgt.auth_service.Schemas.DTO.SecurityProperties;
 import aero.sita.mgt.auth_service.Services.JwtService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
@@ -19,15 +21,17 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import java.util.List;
+import java.util.Map;
+
+@RequiredArgsConstructor
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
+    @Lazy
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
-
-    public SecurityConfig(@Lazy JwtAuthenticationFilter jwtAuthenticationFilter) {
-        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
-    }
+    private final SecurityProperties securityProperties;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http,
@@ -36,28 +40,19 @@ public class SecurityConfig {
         return http
                 .cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
-                .exceptionHandling(ex ->
-                        ex.authenticationEntryPoint(authEntryPoint)
-                                .accessDeniedHandler(accessDeniedHandler))
-                .authorizeHttpRequests(auth -> auth
-                        // Public
-                        .requestMatchers("/api/v2/auth/login",
-                                "/api/v2/auth/reset-password/**",
-                                "/v3/**",
-                                "/swagger-ui*/**",
-                                "/actuator/**")
-                        .permitAll()
-
-                        // Usuários podem listar/editar usuários
-                        .requestMatchers("/api/v2/auth/users/**")
-                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_MASTER", "MASTER", "ADMIN", "SUPERVISOR")
-                        .requestMatchers("/api/v2/auth/register", "/api/v2/auth/update/**")
-                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_MASTER", "MASTER", "ADMIN", "SUPERVISOR")
-                        .requestMatchers("/api/v2/auth/**")
-                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_MASTER", "MASTER", "ADMIN", "SUPERVISOR")
-
-                        // Outras rotas só autenticadas
-                        .anyRequest().permitAll())
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(authEntryPoint)
+                        .accessDeniedHandler(accessDeniedHandler))
+                .authorizeHttpRequests(auth -> {
+                    for (String publicEndpoint : securityProperties.getPublicEndpoints()) {
+                        auth.requestMatchers(publicEndpoint).permitAll();
+                    }
+                    for (Map.Entry<String, List<String>> entry : securityProperties.getProtectedEndpoints().entrySet()) {
+                        auth.requestMatchers(entry.getKey())
+                                .hasAnyAuthority(entry.getValue().toArray(new String[0]));
+                    }
+                    auth.anyRequest().permitAll();
+                })
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .build();
@@ -68,10 +63,6 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
-    @Bean
-    public JwtAuthenticationFilter jwtAuthenticationFilter(JwtService jwtService) {
-        return new JwtAuthenticationFilter(jwtService);
-    }
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {

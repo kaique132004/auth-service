@@ -24,7 +24,7 @@ public class CustomAccessDeniedHandler implements AccessDeniedHandler {
         response.setContentType("application/json");
 
         Map<String, Object> responseMap = new HashMap<>();
-        responseMap.put("timestamp", LocalDateTime.now());
+        responseMap.put("timestamp", LocalDateTime.now().toString());
         responseMap.put("status", 403);
         responseMap.put("message", "Access Denied or permission denied");
 

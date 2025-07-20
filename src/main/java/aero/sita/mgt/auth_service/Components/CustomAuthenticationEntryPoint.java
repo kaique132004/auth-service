@@ -24,7 +24,7 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
         response.setContentType("application/json");
 
         Map<String, Object> responseMap = new HashMap<>();
-        responseMap.put("timestamp", LocalDateTime.now());
+        responseMap.put("timestamp", LocalDateTime.now().toString());
         responseMap.put("status", 401);
         responseMap.put("error", "Token invalid or empty");
 

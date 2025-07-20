@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
+import javax.naming.AuthenticationException;
 import java.security.SignatureException;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -19,15 +20,19 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ExpiredJwtException.class)
     public ResponseEntity handleExpiredJwtException(ExpiredJwtException e) {
         Map<String, Object> response = new HashMap<>();
-        response.put("timestamp", LocalDateTime.now());
+        response.put("timestamp", LocalDateTime.now().toString());
         response.put("status", HttpStatus.UNAUTHORIZED.value());
         response.put("error", "Token is expired");
         return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
     }
-
     @ExceptionHandler(SignatureException.class)
     public ResponseEntity<Object> handleSignatureException(SignatureException ex) {
         return buildErrorResponse("token with signature incorrect", HttpStatus.UNAUTHORIZED);
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<Object> handleAuthenticationException(AuthenticationException ex) {
+        return buildErrorResponse("Authentication exception", HttpStatus.UNAUTHORIZED);
     }
 
     @ExceptionHandler(MalformedJwtException.class)
@@ -47,7 +52,7 @@ public class GlobalExceptionHandler {
 
     private ResponseEntity<Object> buildErrorResponse(String message, HttpStatus status) {
         Map<String, Object> response = new HashMap<>();
-        response.put("timestamp", LocalDateTime.now());
+        response.put("timestamp", LocalDateTime.now().toString());
         response.put("status", status.value());
         response.put("error", message);
         return new ResponseEntity<>(response, status);

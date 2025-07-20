@@ -5,6 +5,9 @@ import aero.sita.mgt.auth_service.Schemas.Entitys.*;
 import aero.sita.mgt.auth_service.Schemas.UserMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.AmqpConnectException;
+import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -26,6 +29,7 @@ import static aero.sita.mgt.auth_service.Services.JwtService.EXPIRATION_TIME;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthService {
 
     @Autowired
@@ -168,8 +172,12 @@ public class AuthService {
         user.setLastLogin(LocalDateTime.now());
         userRepository.save(user);
 
-        rabbitTemplate.convertAndSend("auth.events", "auth.users.login.success", logService.logAction(
-                String.format("LOGIN_%s", user.getUsername()), user.getUsername(), "User successfully logged in"));
+        try {
+            rabbitTemplate.convertAndSend("auth.events", "auth.users.login.success", logService.logAction(
+                    String.format("LOGIN_%s", user.getUsername()), user.getUsername(), "User successfully logged in"));
+        }catch (AmqpException e){
+            log.error("Is not possible send message to RabbitMQ: {}", e.getMessage());
+        }
 
         LoginResponse loginResponse = new LoginResponse();
         loginResponse.setUsername(user.getUsername());
@@ -192,9 +200,13 @@ public class AuthService {
 
         if (userRepository.existsByUsername(request.getUsername())
                 || userRepository.existsByEmail(request.getEmail())) {
-            rabbitTemplate.convertAndSend("auth.events", "auth.users.created.error",
-                    logService.logAction(String.format("CREATE_NEW_USER%s", request.getUsername()),
-                            request.getUsername(), "Username or email address already in use"));
+            try {
+                rabbitTemplate.convertAndSend("auth.events", "auth.users.created.error",
+                        logService.logAction(String.format("CREATE_NEW_USER%s", request.getUsername()),
+                                request.getUsername(), "Username or email address already in use"));
+            }catch (AmqpException e){
+                log.error("Is not possible send message to RabbitMQ: {}", e.getMessage());
+            }
             throw new IllegalArgumentException("Username or email address already in use");
         }
 
@@ -222,9 +234,13 @@ public class AuthService {
 
         String token = jwtService.generateToken(savedUser);
 
-        rabbitTemplate.convertAndSend("auth.events", "auth.users.created.success",
-                logService.logAction(String.format("CREATE_NEW_USER_%s", request.getUsername()),
-                        SecurityContextHolder.getContext().getAuthentication().getName(), "User successfully created"));
+        try {
+            rabbitTemplate.convertAndSend("auth.events", "auth.users.created.success",
+                    logService.logAction(String.format("CREATE_NEW_USER_%s", request.getUsername()),
+                            SecurityContextHolder.getContext().getAuthentication().getName(), "User successfully created"));
+        }catch (AmqpException e){
+            log.error("Is not possible send message to RabbitMQ: {}", e.getMessage());
+        }
         LoginResponse loginResponse = new LoginResponse();
         loginResponse.setUsername(user.getUsername());
         loginResponse.setEmail(user.getEmail());
@@ -249,12 +265,15 @@ public class AuthService {
 
         userRepository.save(existingUser);
 
-        rabbitTemplate.convertAndSend("auth.events", "auth.users.updated.success",
-                logService.logAction(
-                        String.format("UPDATE_USER_%s", existingUser.getUsername()),
-                        SecurityContextHolder.getContext().getAuthentication().getName(),
-                        "User successfully updated"));
-
+        try {
+            rabbitTemplate.convertAndSend("auth.events", "auth.users.updated.success",
+                    logService.logAction(
+                            String.format("UPDATE_USER_%s", existingUser.getUsername()),
+                            SecurityContextHolder.getContext().getAuthentication().getName(),
+                            "User successfully updated"));
+        }catch (AmqpException e){
+            log.error("Is not possible send message to RabbitMQ: {}", e.getMessage());
+        }
         return new UserUpdateResponse(202, "User was updated");
     }
 
@@ -266,9 +285,13 @@ public class AuthService {
         user.setUpdatedBy(getCurrentUsername());
         userRepository.save(user);
 
-        rabbitTemplate.convertAndSend("auth.events", "auth.users.updated.reset-password",
-                logService.logAction(String.format("RESET_PASSWORD_USER_%s", username),
-                        SecurityContextHolder.getContext().getAuthentication().getName(), "Password reset by Admin"));
+        try {
+            rabbitTemplate.convertAndSend("auth.events", "auth.users.updated.reset-password",
+                    logService.logAction(String.format("RESET_PASSWORD_USER_%s", username),
+                            SecurityContextHolder.getContext().getAuthentication().getName(), "Password reset by Admin"));
+        }catch (AmqpException e){
+            log.error("Is not possible send message to RabbitMQ: {}", e.getMessage());
+        }
         return new GenericResponse(200, "Password was redefined by user Admin", null);
     }
 
@@ -279,9 +302,13 @@ public class AuthService {
 
         sendResetPasswordEmail(user.getEmail(), resetLink);
 
-        rabbitTemplate.convertAndSend("auth.events", "auth.users.login.mail",
-                logService.logAction(String.format("SEND_TOKEN_EMAIL_TO_%s", request.getUsername()),
-                        request.getUsername(), "Send link with token to reset password"));
+        try {
+            rabbitTemplate.convertAndSend("auth.events", "auth.users.login.mail",
+                    logService.logAction(String.format("SEND_TOKEN_EMAIL_TO_%s", request.getUsername()),
+                            request.getUsername(), "Send link with token to reset password"));
+        }catch (AmqpException e){
+            log.error("Is not possible send message to RabbitMQ: {}", e.getMessage());
+        }
         return new GenericResponse(202, "Password reset link was generated", "");
     }
 
@@ -316,10 +343,13 @@ public class AuthService {
         user.setUpdatedBy(getCurrentUsername()); // já tem esse método
 
         userRepository.save(user);
-        rabbitTemplate.convertAndSend("auth.events", "auth.users.updated.delete",
-                logService.logAction(String.format("DELETE_USER_%s", id),
-                        SecurityContextHolder.getContext().getAuthentication().getName(), "User was disabled"));
-
+        try {
+            rabbitTemplate.convertAndSend("auth.events", "auth.users.updated.delete",
+                    logService.logAction(String.format("DELETE_USER_%s", id),
+                            SecurityContextHolder.getContext().getAuthentication().getName(), "User was disabled"));
+        }catch (AmqpException e){
+            log.error("Is not possible send message to RabbitMQ: {}", e.getMessage());
+        }
         return new GenericResponse(200, "Status user changed to disabled, successful", null);
     }
 
@@ -342,11 +372,14 @@ public class AuthService {
         user.setUpdatedBy(username);
         userRepository.save(user);
 
-        rabbitTemplate.convertAndSend("auth.events", "auth.users.updated.reset-password",
-                logService.logAction(String.format("RESET_PASSWORD_USER_%s", username),
-                        SecurityContextHolder.getContext().getAuthentication().getName(),
-                        "Password was updated by self user"));
-
+        try {
+            rabbitTemplate.convertAndSend("auth.events", "auth.users.updated.reset-password",
+                    logService.logAction(String.format("RESET_PASSWORD_USER_%s", username),
+                            SecurityContextHolder.getContext().getAuthentication().getName(),
+                            "Password was updated by self user"));
+        }catch (AmqpException e){
+            log.error("Is not possible send message to RabbitMQ: {}", e.getMessage());
+        }
         return new GenericResponse(200, "Password was changed", null);
     }
 
@@ -361,9 +394,14 @@ public class AuthService {
         user.setCredentialsNonExpired(true);
         userRepository.save(user);
 
-        rabbitTemplate.convertAndSend("auth.events", "auth.users.updated.reset-password",
-                logService.logAction(String.format("RESET_PASSWORD_USER_%s", username), "system_application",
-                        "Password was updated by email link"));
+        try {
+            rabbitTemplate.convertAndSend("auth.events", "auth.users.updated.reset-password",
+                    logService.logAction(String.format("RESET_PASSWORD_USER_%s", username), "system_application",
+                            "Password was updated by email link"));
+        }catch (AmqpException e){
+            log.error("Is not possible send message to RabbitMQ: {}", e.getMessage());
+        }
+
         return new GenericResponse(200, "Password was redefined with successful", null);
     }
 
@@ -391,7 +429,11 @@ public class AuthService {
         mail.setBody("Reset password link, Follow this link: \n" + link);
         mail.setLink(Collections.singletonList(link));
 
-        rabbitTemplate.convertAndSend("auth.events", "auth.users.reset", mail);
+        try {
+            rabbitTemplate.convertAndSend("auth.events", "auth.users.reset", mail);
+        }catch (AmqpException e){
+            log.error("Is not possible send message to RabbitMQ: {}", e.getMessage());
+        }
     }
 
     public List<UserResponse> getAllUsers() {
