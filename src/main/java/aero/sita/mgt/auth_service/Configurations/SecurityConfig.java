@@ -1,5 +1,7 @@
 package aero.sita.mgt.auth_service.Configurations;
 
+import aero.sita.mgt.auth_service.Components.CustomAccessDeniedHandler;
+import aero.sita.mgt.auth_service.Components.CustomAuthenticationEntryPoint;
 import aero.sita.mgt.auth_service.Components.JwtAuthenticationFilter;
 import aero.sita.mgt.auth_service.Services.JwtService;
 import org.springframework.context.annotation.Bean;
@@ -28,10 +30,15 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http,
+                                           CustomAuthenticationEntryPoint authEntryPoint,
+                                           CustomAccessDeniedHandler accessDeniedHandler) throws Exception {
         return http
                 .cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
+                .exceptionHandling(ex ->
+                        ex.authenticationEntryPoint(authEntryPoint)
+                                .accessDeniedHandler(accessDeniedHandler))
                 .authorizeHttpRequests(auth -> auth
                         // Public
                         .requestMatchers("/api/v2/auth/login",
