@@ -1,6 +1,7 @@
 package aero.sita.mgt.auth_service.Schemas.DTO;
 
 import aero.sita.mgt.auth_service.Schemas.Entitys.UserEntity;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -9,6 +10,7 @@ import java.util.Map;
 import java.util.Set;
 
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class UserUpdateRequest {
 
     private String firstName;

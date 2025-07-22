@@ -14,11 +14,6 @@ import org.springframework.context.annotation.Configuration;
 public class RabbitMQConfig {
 
     @Bean
-    public MessageConverter messageConverter() {
-        return new Jackson2JsonMessageConverter();
-    }
-
-    @Bean
     public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory) {
         RabbitTemplate template = new RabbitTemplate(connectionFactory);
         template.setMessageConverter(messageConverter());
@@ -26,50 +21,37 @@ public class RabbitMQConfig {
     }
 
     @Bean
-    public TopicExchange authExchange() {
-        return new TopicExchange("auth.events");
+    public MessageConverter messageConverter() {
+        return new Jackson2JsonMessageConverter();
     }
 
     @Bean
-    public Queue logsQueue() {
-        return new Queue("queue.logs.authentication");
+    public Queue sendResetToken() {
+        return new  Queue("auth.events.pass.reset");
     }
 
     @Bean
-    public Binding binding() {
-        return BindingBuilder.bind(logsQueue()).to(authExchange()).with("auth.users.*.*");
-    }
-
-
-    @Bean
-    public Queue emailQueue() {
-        return new Queue("queue.email.new-users");
+    public DirectExchange resetTokenDirect() {
+        return new DirectExchange("auth.events.pass.reset.exchange");
     }
 
     @Bean
-    public Queue emailQueueReset() {
-        return new Queue("queue.email.reset");
-    }
-
-
-    @Bean
-    public Binding bindingLogsLogin() {
-        return BindingBuilder.bind(logsQueue()).to(authExchange()).with("auth.users.login.*");
+    public Binding resetTokenBinding(Queue sendResetToken,  DirectExchange resetTokenDirect) {
+        return BindingBuilder.bind(sendResetToken).to(resetTokenDirect).with("auth.events.pass.reset.key");
     }
 
     @Bean
-    public Binding bindingLogsUpdated() {
-        return BindingBuilder.bind(logsQueue()).to(authExchange()).with("auth.users.updated.*");
+    public Queue newUser() {
+        return new  Queue("auth.events.new.user");
     }
 
     @Bean
-    public Binding bindingEmailNewUser() {
-        return BindingBuilder.bind(emailQueue()).to(authExchange()).with("auth.users.created.*");
+    public DirectExchange newUserDirect() {
+        return new DirectExchange("auth.events.new.user.exchange");
     }
 
     @Bean
-    public Binding bindingEmailResetPassword() {
-        return BindingBuilder.bind(emailQueueReset()).to(authExchange()).with("auth.users.reset");
+    public Binding newUserBinding(Queue newUser,  DirectExchange newUserDirect) {
+        return BindingBuilder.bind(newUser).to(newUserDirect).with("auth.events.new.user.key");
     }
-
 }

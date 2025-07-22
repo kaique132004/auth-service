@@ -50,7 +50,7 @@ public class AuthController {
             @ApiResponse(responseCode = "400", description = "Bad request (e.g., user already exists)", content = @Content)
     })
     @PostMapping("/register")
-    public ResponseEntity<LoginResponse> register(@RequestBody RegisterRequest request) {
+    public ResponseEntity<GenericResponse> register(@RequestBody RegisterRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
     }
 

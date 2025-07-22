@@ -24,19 +24,20 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import java.util.List;
 import java.util.Map;
 
-@RequiredArgsConstructor
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
-    @Lazy
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final SecurityProperties securityProperties;
 
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter, SecurityProperties securityProperties) {
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.securityProperties = securityProperties;
+    }
+
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http,
-                                           CustomAuthenticationEntryPoint authEntryPoint,
-                                           CustomAccessDeniedHandler accessDeniedHandler) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, CustomAccessDeniedHandler accessDeniedHandler, CustomAuthenticationEntryPoint authEntryPoint) throws Exception {
         return http
                 .cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
