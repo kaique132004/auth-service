@@ -17,6 +17,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import javax.security.auth.login.AccountException;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.HashMap;
@@ -144,12 +145,17 @@ public class AuthService {
         return SecurityContextHolder.getContext().getAuthentication().getName();
     }
 
-    public Object login(LoginRequest request) {
+    public Object login(LoginRequest request) throws BadCredentialsException{
 
         long expirationTimestamp = System.currentTimeMillis() + EXPIRATION_TIME;
 
         UserEntity user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new UsernameNotFoundException("Not found user"));
+
+        if(userRepository.findByUsernameAndFirstLogin(user.getUsername(), Boolean.TRUE).isPresent()) {
+            String resetToken= jwtService.generatePasswordResetToken(user);
+            return new GenericResponse(307, "Is necessary redefine your password", resetToken);
+        }
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new BadCredentialsException("Password incorrect");
@@ -162,6 +168,10 @@ public class AuthService {
 
         if (!Boolean.TRUE.equals(user.getEnabled())) {
             throw new BadCredentialsException("User is not enabled");
+        }
+
+        if(passwordEncoder.matches(user.getPassword(), user.getPassword())) {
+            throw new BadCredentialsException("Password incorrect");
         }
 
         String token = jwtService.generateToken(user);
@@ -320,15 +330,21 @@ public class AuthService {
         return new GenericResponse(200, "Password was changed", null);
     }
 
-    public GenericResponse resetPassword(String token, UserPasswordRequest request) {
+    public GenericResponse resetPassword(String token, UserPasswordRequest request) throws AccountException {
+        String password_regex = "^(?=.*[A-Z])(?=.*[a-z])(?=.*[^a-zA-Z0-9]).8$";
         validateResetToken(token);
         String username = jwtService.extractUsername(token);
         UserEntity user = getUserByUsername(username);
+
+        if(Pattern.matches(password_regex, user.getPassword())) {
+            throw new AccountException("The password must be at least 8 characters long and a special character");
+        }
 
         userMapper.updatePasswordFromRequest(request, user, passwordEncoder);
         user.setUpdatedAt(LocalDateTime.now());
         user.setUpdatedBy("RESET_PASSWORD");
         user.setCredentialsNonExpired(true);
+        user.setFirstLogin(false);
         userRepository.save(user);
 
         return new GenericResponse(200, "Password was redefined with successful", null);

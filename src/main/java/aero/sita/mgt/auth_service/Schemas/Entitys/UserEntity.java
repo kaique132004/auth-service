@@ -98,6 +98,9 @@ public class UserEntity implements UserDetails {
     @Column(name = "enabled")
     private Boolean enabled = true;
 
+    @Column(name = "first_login")
+    private Boolean firstLogin = true;
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()));

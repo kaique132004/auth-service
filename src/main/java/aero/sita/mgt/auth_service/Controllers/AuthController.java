@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import javax.security.auth.login.AccountException;
 import java.util.List;
 
 @Tag(name = "Authentication Controller", description = "Controller defined for the access control and entity registration part")
@@ -70,7 +71,7 @@ public class AuthController {
             @ApiResponse(responseCode = "400", description = "Invalid or expired token")
     })
     @PostMapping("/reset-password/{token}")
-    public ResponseEntity<GenericResponse> resetPassword(@PathVariable String token, @RequestBody UserPasswordRequest request) {
+    public ResponseEntity<GenericResponse> resetPassword(@PathVariable String token, @RequestBody UserPasswordRequest request) throws AccountException {
         return ResponseEntity.status(HttpStatus.NO_CONTENT).body(authService.resetPassword(token, request));
     }
 
